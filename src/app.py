@@ -16,16 +16,18 @@ def get_data() -> pd.DataFrame:
     return df
 
 
+last_time = None
 
-start = time.time()
-@st.experimental_memo
-def update_data(window=4):
-    global start, simulation_length, dataframe
-    diff = (start - time.time()) % simulation_length
-    index = int(dataframe.shape[0]*(diff/simulation_length))
-    start = 0 if (index - 100) < 0 else (index - 100)
-    logging.info(f'Setting df range to [{start:,}:{index:,}]')
-    return dataframe.iloc[start:index]
+def update_data(window=1):
+    global last_time
+    df = get_data()
+    if last_time is None:
+        last_time = df['TimeStamp'].iloc[0]
+    else:
+        last_time = last_time + pd.Timedelta(seconds=window)
+    df = df[df['TimeStamp'] <= last_time]
+    logging.info(f"last_time: {last_time}")
+    return df
 
 
 st.set_page_config(
