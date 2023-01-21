@@ -21,9 +21,9 @@ start = time.time()
 @st.experimental_memo
 def update_data(window=4):
     global start, simulation_length, dataframe
-    diff = start - time.time()
-    index = int(dataframe.shape[0]*((diff/simulation_length)/simulation_length))
-    start = 0 if index - 100 < 0 else index - 100
+    diff = (start - time.time()) % simulation_length
+    index = int(dataframe.shape[0]*(diff/simulation_length))
+    start = 0 if (index - 100) < 0 else (index - 100)
     logging.info(f'Setting df range to [{start:,}:{index:,}]')
     return dataframe.iloc[start:index]
 
@@ -47,13 +47,18 @@ while True:
         with fig_col1:
             st.markdown("### Demand and Supply")
 
-            fig = px.bar(df[df.OrderPrice.notna()], x="TimeStamp", y="adjusted_price", color="bar_color", labels={"adjusted_price": "Order Price", "TimeStamp": "Time"})
+            fig = px.bar(
+                df[df.OrderPrice.notna()],
+                x="TimeStamp",
+                y="adjusted_price",
+                color="bar_color",
+                labels={"adjusted_price": "Order Price", "TimeStamp": "Time"})
             fig.update_traces(marker_color=df["bar_color"])
             st.write(fig)
 
-        # with fig_col2:
-        #     st.write("### Second Chart")
-        #     fig = px.scatter(df[df.MessageType=='NewOrderAcknowledged'], x="TimeStamp", y="OrderPrice")
+        with fig_col2:
+            # Enter code here
+            pass
 
 
         st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")
