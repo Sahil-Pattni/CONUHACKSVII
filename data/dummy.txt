@@ -1,0 +1,1 @@
+This exists purely so that the data directory lives in our repository.
