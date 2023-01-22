@@ -45,7 +45,9 @@ while True:
                 x="TimeStamp",
                 y="OrderPrice",
                 color='Symbol',
-                labels={"OrderPrice": "Order Price", "TimeStamp": "Time"})
+                labels={"OrderPrice": "Order Price", "TimeStamp": "Time"},
+                title = "# of orders per second"
+            )
             st.write(fig)
 
         with fig_col2:
@@ -62,9 +64,9 @@ while True:
                 title='Avg Price per second'
             )
             st.write(fig)
-            
+        st.metric(label='Avg Standard Deviation per second', value=df.groupby('Symbol').std().mean())
         st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")
-        
+
         # Sleep for remaining time (up to 1 second)
         elapsed_time = time.time() - start_time
         if elapsed_time < 1:
@@ -80,5 +82,5 @@ while True:
             if no_refresh > 3:
                 break
         last_row = df.index[-1]
-        
+
         st.dataframe(df.tail(10))
