@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
 import time
 import logging
@@ -34,38 +35,76 @@ while True:
     start_time = time.time()
     df = streamer.stream()
     with placeholder.container():
+        refresh_time_padded = 1 if last_refresh_time < 1 else last_refresh_time
+        st.markdown(f"### Live Orders: {df.RoundedTimeStamp.iloc[0]} to {df.RoundedTimeStamp.iloc[-1]}")
+
+        fig = px.scatter(
+            df[df.MessageType.isin(['Trade', 'NewOrderAcknowledged'])],
+            x="TimeStamp",
+            y="OrderPrice",
+            color="Symbol",
+            color_discrete_map=streamer.get_ticker_color_map(),
+            title=f"Refresh Time: {refresh_time_padded:.3f} second(s) | Open Orders: {streamer.get_nopen_orders():,}",
+            labels={"OrderPrice": "Order Price", "TimeStamp": "Time"})
+        # Set category order
+        fig.update_xaxes(categoryorder='category ascending')
+        # Change width of the plot
+        st.plotly_chart(fig, use_container_width=True)
+        
         fig_col1, fig_col2 = st.columns(2)
 
         with fig_col1:
-            refresh_time_padded = 1 if last_refresh_time < 1 else last_refresh_time
-            st.markdown(f"### Refresh Time: {refresh_time_padded:.3f} second(s) | Open Orders: {streamer.get_nopen_orders():,}")
-
-            fig = px.scatter(
-                df[df.OrderPrice.notna()],
-                x="TimeStamp",
-                y="OrderPrice",
-                color='Symbol',
-                labels={"OrderPrice": "Order Price", "TimeStamp": "Time"},
-                title = "# of orders per second"
-            )
-            st.write(fig)
-
+            fig = px.violin(df[~df.OrderPrice.isna()], y='OrderPrice', x='MessageType', color='MessageType', box=False, points='outliers')
+            st.plotly_chart(fig, use_container_width=True)
         with fig_col2:
-            cancelled_orders = streamer.get_cancelled_orders()
-            executed_trades = streamer.get_executed_trades()
-            open_orders = streamer.get_nopen_orders()
+            fig = px.violin(df[df['MessageType'].isin(['NewOrderAcknowledged','CancelAcknowledged'])].sort_values('MessageType'), x='MessageType')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        fig = px.violin(df.sort_values('MessageType'), x='MessageType', points='outliers')
+        st.plotly_chart(fig, use_container_width=True)
 
-            equitymeans = df.groupby('Symbol').mean()
-            fig = px.bar(
-                equitymeans,
-                x=equitymeans.index,
-                y='OrderPrice',
-                color=equitymeans.index,
-                title='Avg Price per second'
-            )
-            st.write(fig)
         st.metric(label='Avg Standard Deviation per second', value=df.groupby('Symbol').std().mean())
         st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")
+        st.markdown(f"### Anomalies Detected (Incorrect Flow)")
+        st.write(streamer.get_anomalies())
+
+        # Plot percentage of cancelled orders and executed trades
+        fig = px.pie(
+            values=[streamer.get_cancelled_orders(), streamer.get_executed_trades()],
+            names=['Cancelled Orders', 'Executed Trades'],
+            title=f"Cancelled Orders: {streamer.get_cancelled_orders():,} | Executed Trades: {streamer.get_executed_trades():,}"
+        )
+        st.plotly_chart(fig)
+
+
+        # # with fig_col2:
+        # fig = px.treemap(
+        #     df,
+        #     path=['MessageType'],
+        #     values=pd.Series(np.ones(df.shape[0])),
+        #     color='MessageType',
+        #     color_discrete_map=streamer.get_message_color_map(),
+        # )
+        # st.plotly_chart(fig)
+
+
+        # cancelled_orders = streamer.get_cancelled_orders()
+        # executed_trades = streamer.get_executed_trades()
+        # open_orders = streamer.get_nopen_orders()
+
+        # equitymeans = df.groupby('Symbol').mean()
+        # fig = px.bar(
+        #     equitymeans,
+        #     x=equitymeans.index,
+        #     y='OrderPrice',
+        #     color=equitymeans.index,
+        #     title='$x^2$'
+        # )
+        # fig.update_xaxes(categoryorder='category ascending')
+        # st.plotly_chart(fig)
+            
+        st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")
+        st.dataframe(df.tail(10))
 
         # Sleep for remaining time (up to 1 second)
         elapsed_time = time.time() - start_time
@@ -81,6 +120,5 @@ while True:
             no_refresh += 1
             if no_refresh > 3:
                 break
-        last_row = df.index[-1]
 
-        st.dataframe(df.tail(10))
+        last_row = df.index[-1]
