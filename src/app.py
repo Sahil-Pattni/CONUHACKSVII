@@ -6,6 +6,7 @@ import time
 import logging
 from datastreamer import DataStreamer
 
+
 st.set_page_config(
         page_title="Real-Time Order Book Dashboard",
         page_icon="✅",
