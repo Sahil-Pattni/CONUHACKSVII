@@ -38,6 +38,7 @@ option = st.sidebar.selectbox(
                 index=0,
                 key='speed'
 )
+
 while True:
     start_time = time.time()
     df = streamer.stream()
@@ -57,7 +58,7 @@ while True:
             y="OrderPrice",
             color="Symbol",
             color_discrete_map=streamer.get_ticker_color_map(),
-            title=f"Trades/Acknowledged Orders",
+            title=f"Trades/Acknowledged Orders (10 most active symbols)",
             labels={"OrderPrice": "Order Price", "TimeStamp": "Time"})
         # Set category order
         fig.update_xaxes(categoryorder='category ascending')
@@ -109,9 +110,33 @@ while True:
         fig = px.violin(df.sort_values('MessageType'), x='MessageType', points='outliers')
         st.plotly_chart(fig, use_container_width=True)
 
+        # Anomalies
         st.header(f"Anomalies Detected (Incorrect Flow)")
-        st.write(streamer.get_anomalies())
-            
+        anomalies = streamer.get_anomalies()
+        st.write(anomalies)
+
+        fig1, fig2 = st.columns(2)
+        with fig1:
+            # Plot the distribution of Direction
+            fig = px.pie(
+                anomalies,
+                # values='Direction',
+                names='Direction',
+                title='Direction Distribution'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with fig2:
+            # Plot the distribution of Type
+            fig = px.pie(
+                anomalies,
+                # values='Type',
+                names='MessageType',
+                title='Message Type Distribution'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Order Book            
         st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[-10]:,} to {df.index[-1]:,}")
         st.dataframe(df.tail(10))
 
@@ -168,7 +193,7 @@ while True:
             if elapsed_time < 1:
                 time.sleep(1 - elapsed_time)
             last_refresh_time = abs(elapsed_time)
-            
+
         if last_row is None:
                 last_row = df.index[-1]
         elif last_row == df.index[-1]:
