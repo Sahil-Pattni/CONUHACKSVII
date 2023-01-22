@@ -14,7 +14,6 @@ class DataStreamer:
             time_col (str, optional): Name of the column containing the timestamp. Defaults to 'TimeStamp'.
         """
         self.df = pd.read_json(datapath)
-        self.DATAFRAME = self.df.copy() # Keep a copy of the original dataframe
         # Sort by timestamp
         self.df.sort_values(by=[time_col], inplace=True)
         self.last_time = None
@@ -48,17 +47,19 @@ class DataStreamer:
 
         # If the window exceeds the last timestamp, loop back to the beginning
         if one_second_ahead > self.df['TimeStamp'].iloc[-1]:
-            return self.DATAFRAME
-
-        if half_window:
-            df = self.df[(self.df['TimeStamp'] <= one_second_ahead)]
-        else:
-            # 
-            df = self.df[(self.df['TimeStamp'] > self.last_time) & (self.df['TimeStamp'] <= one_second_ahead)]
+            return self.df
+        # Lower bound is 5 seconds before the upper bound if possible, otherwise the first timestamp
+        lower_bound = one_second_ahead - pd.Timedelta(seconds=5) 
+        if lower_bound < self.df['TimeStamp'].iloc[0]:
+            lower_bound = self.df['TimeStamp'].iloc[0]
+        df = self.df[(self.df['TimeStamp'] > lower_bound) & (self.df['TimeStamp'] <= one_second_ahead)]
         # Update the last time
         self.last_time = one_second_ahead
-        # Log the data
-        logging.info(f"Streaming {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")
+        try:
+            # Log the data
+            logging.info(f"Streaming {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")
+        except:
+            print(f"Error with timestamp: {one_second_ahead}")
         # Update the order status
         self.update_order_status(df)
         return df

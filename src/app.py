@@ -27,14 +27,17 @@ streamer = get_streamer()
 placeholder = st.empty()
 
 
-
+last_refresh_time = 1
+last_row = None
 while True:
+    start_time = time.time()
     df = streamer.stream()
     with placeholder.container():
         fig_col1, fig_col2 = st.columns(2)
 
         with fig_col1:
-            st.markdown(f"### Demand and Supply")
+            refresh_time_padded = 1 if last_refresh_time > 1 else last_refresh_time
+            st.markdown(f"### Refresh Time: {refresh_time_padded:.3f} second(s)")
 
             fig = px.scatter(
                 df[df.OrderPrice.notna()],
@@ -50,8 +53,19 @@ while True:
             executed_trades = streamer.get_executed_trades()
             open_orders = streamer.get_nopen_orders()
             
-
-
         st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")
-        st.dataframe(df)
-    time.sleep(0.5)
+        st.dataframe(df.tail(10))
+        
+        # Sleep for remaining time (up to 1 second)
+        elapsed_time = time.time() - start_time
+        if elapsed_time < 1:
+            time.sleep(1 - elapsed_time)
+
+
+        last_refresh_time = abs(elapsed_time)
+        if last_row is None:
+                last_row = df.index[-1]
+        elif last_row == df.index[-1]:
+            logging.info(f'Breaking out of loop at {df.index[-1]}.')
+            break
+        last_row = df.index[-1]
