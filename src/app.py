@@ -32,18 +32,27 @@ last_refresh_time = 1
 no_refresh = 0
 last_row = None
 
-
+option = st.sidebar.selectbox(
+                'Select a simulation speed',
+                options=['Real Time', 'Sped Up'],
+                index=0,
+                key='speed'
+)
 while True:
     start_time = time.time()
     df = streamer.stream()
     with placeholder.container():
         refresh_time_padded = 1 if last_refresh_time < 1 else last_refresh_time
-        st.markdown(f"### Live Orders: {df.RoundedTimeStamp.iloc[0]} to {df.RoundedTimeStamp.iloc[-1]}")
-        
 
+        st.markdown(f"### Simulated Live Stream\n{df.RoundedTimeStamp.iloc[0]} to {df.RoundedTimeStamp.iloc[-1]}")
+            
+        
+        # Filter df to top 10 symbols
+        top_symbols = df.Symbol.value_counts().index[:10]
+        
         # Plot acknowledged/executed orders
         fig = px.scatter(
-            df[df.MessageType.isin(['Trade', 'NewOrderAcknowledged'])],
+            df[(df.MessageType.isin(['Trade', 'NewOrderAcknowledged'])) & (df.Symbol.isin(top_symbols))].sort_values('Symbol'),
             x="TimeStamp",
             y="OrderPrice",
             color="Symbol",
@@ -55,6 +64,8 @@ while True:
         fig.update_traces(marker={'size': 15})
         # Change width of the plot
         st.plotly_chart(fig, use_container_width=True)
+
+        st.metric(label='Mean Std. Dev across all tickers', value=round(df.groupby('Symbol').std().mean(), 4))
 
 
         # Plot mean order price by ticker
@@ -68,8 +79,6 @@ while True:
         )
         fig.update_xaxes(categoryorder='category ascending')
         st.plotly_chart(fig, use_container_width=True)
-
-        st.metric(label='Avg Standard Deviation per second', value=round(df.groupby('Symbol').std().mean(), 4))
         
 
         fig_col1, fig_col2 = st.columns(2)
@@ -154,12 +163,12 @@ while True:
             st.plotly_chart(fig, height=200, use_container_width=True)
 
         # Sleep for remaining time (up to 1 second)
-        elapsed_time = time.time() - start_time
-        if elapsed_time < 1:
-            time.sleep(1 - elapsed_time)
-
-
-        last_refresh_time = abs(elapsed_time)
+        if option == 'Real Time':
+            elapsed_time = time.time() - start_time
+            if elapsed_time < 1:
+                time.sleep(1 - elapsed_time)
+            last_refresh_time = abs(elapsed_time)
+            
         if last_row is None:
                 last_row = df.index[-1]
         elif last_row == df.index[-1]:
