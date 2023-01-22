@@ -20,6 +20,10 @@ class DataStreamer:
         self.orders = {}
 
     
+    def __flow_error(self, order_id, actual, expected):
+        logging.error(f"ERROR on Order ID `{order_id}`: Expected {expected}, but got `{actual}`")
+
+    
     def stream(self, window=1):
         """
         Stream data from the file.
@@ -52,24 +56,34 @@ class DataStreamer:
 
             if order_id not in self.orders:
                 if order_status != 'NewOrderRequest':
-                    logging.error(f"ERROR on Order ID `{order_id}`: [NEW ORDER] Expected `NewOrderRequest`, but got `{order_status}`")
+                    self.__flow_error(order_id, order_status, 'NewOrderRequest')
+                    # logging.error(f"ERROR on Order ID `{order_id}`: [NEW ORDER] Expected `NewOrderRequest`, but got `{order_status}`")
                 else:
                     # If order does not exist, add it
                     self.orders[order_id] = order_status
             else:
-                if order_status == 'NewOrderAcknowledged' and self.orders[order_id] != 'NewOrderRequest':
-                    logging.error(f"ERROR on Order ID `{order_id}`: Expected `NewOrderRequest`, but got `{order_status}`")
-                elif order_status == 'CancelRequest' and self.orders[order_id] != 'NewOrderAcknowledged':
-                    logging.error(f"ERROR on Order ID `{order_id}`: Expected `NewOrderAcknowledged`, but got `{order_status}`")
-                elif order_status == 'CancelRequestAcknowledged' and self.orders[order_id] != 'CancelRequest':
-                    logging.error(f"ERROR on Order ID `{order_id}`: Expected `CancelRequest`, but got `{order_status}`")
-                elif order_status == 'Cancelled' and self.orders[order_id] != 'CancelRequestAcknowledged':
-                    logging.error(f"ERROR on Order ID `{order_id}`: Expected `CancelRequestAcknowledged`, but got `{order_status}`")
-                elif order_status == 'Trade' and self.orders[order_id] != 'NewOrderAcknowledged':
-                    logging.error(f"ERROR on Order ID `{order_id}`: Expected `NewOrderAcknowledged`, but got `{order_status}`")
+                previous_status = self.orders[order_id]
+                if order_status == 'NewOrderAcknowledged' and previous_status != 'NewOrderRequest':
+                    self.__flow_error(order_id, previous_status, 'NewOrderRequest')
+                elif order_status == 'CancelRequest' and previous_status != 'NewOrderAcknowledged':
+                    self.__flow_error(order_id, previous_status, 'NewOrderAcknowledged')
+                elif order_status == 'CancelRequestAcknowledged' and previous_status != 'CancelRequest':
+                    self.__flow_error(order_id, previous_status, 'CancelRequest')
+                elif order_status == 'Cancelled':
+                    if previous_status != 'CancelRequestAcknowledged':
+                        self.__flow_error(order_id, previous_status, 'CancelRequestAcknowledged')
+                    else:
+                        self.orders.pop(order_id)
+                        logging.info(f"[CLEAR] Order `{order_id}` has been cancelled")
+                elif order_status == 'Trade':
+                    if previous_status != 'NewOrderAcknowledged':
+                        self.__flow_error(order_id, previous_status, 'NewOrderAcknowledged')
+                    else:
+                        self.orders.pop(order_id)
+                        logging.info(f"[CLEAR] Order `{order_id}` has been traded")
                 # Finally, if order flow is correct, remove the order from the dictionary
                 else:
-                    self.orders.pop(order_id)
+                    self.orders[order_id] = order_status
     
 
     def get_open_orders(self):
