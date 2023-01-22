@@ -113,28 +113,29 @@ while True:
         # Anomalies
         st.header(f"Anomalies Detected (Incorrect Flow)")
         anomalies = streamer.get_anomalies()
-        st.write(anomalies)
+        if anomalies is not None:
+            st.write(anomalies)
 
-        fig1, fig2 = st.columns(2)
-        with fig1:
-            # Plot the distribution of Direction
-            fig = px.pie(
-                anomalies,
-                names='Direction',
-                title='Direction Distribution',
-                hole=0.4
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with fig2:
-            # Plot the distribution of Type
-            fig = px.pie(
-                anomalies,
-                names='MessageType',
-                title='Message Type Distribution',
-                hole=0.4
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            fig1, fig2 = st.columns(2)
+            with fig1:
+                # Plot the distribution of Direction
+                fig = px.pie(
+                    anomalies,
+                    names='Direction',
+                    title='Direction Distribution',
+                    hole=0.4
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with fig2:
+                # Plot the distribution of Type
+                fig = px.pie(
+                    anomalies,
+                    names='MessageType',
+                    title='Message Type Distribution',
+                    hole=0.4
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
         # Order Book            
         st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[-10]:,} to {df.index[-1]:,}")

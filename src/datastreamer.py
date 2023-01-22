@@ -228,7 +228,7 @@ class DataStreamer:
         Returns:
             pd.DataFrame: Dataframe containing the anomalies.
         """
-        return self.anomalies[['Reason', 'OrderID', 'MessageType', 'Symbol', 'TimeStamp', 'Direction']]
+        return None if self.anomalies is None else self.anomalies[['Reason', 'OrderID', 'MessageType', 'Symbol', 'TimeStamp', 'Direction']]
 
 
 
