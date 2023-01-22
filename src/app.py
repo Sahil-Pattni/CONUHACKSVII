@@ -41,7 +41,7 @@ while True:
         st.markdown(f"### Live Orders: {df.RoundedTimeStamp.iloc[0]} to {df.RoundedTimeStamp.iloc[-1]}")
 
 
-        # Plot refresh rates
+        # Plot refresh rate
         fig_col1, fig_col2 = st.columns(2)
         with fig_col1:
             fig = go.Figure(go.Indicator(
@@ -64,6 +64,7 @@ while True:
             fig.update_layout(height=300)
             st.plotly_chart(fig, height=200, use_container_width=True)
         
+        # Plot processing time
         with fig_col2:
             fig = go.Figure(go.Indicator(
             mode = "gauge+number",
@@ -85,6 +86,8 @@ while True:
             title = {'text': "Processing Time (seconds)"}))
             fig.update_layout(height=300)
             st.plotly_chart(fig, height=200, use_container_width=True)
+
+
         
 
         # Plot acknowledged/executed orders
@@ -113,6 +116,8 @@ while True:
         )
         fig.update_xaxes(categoryorder='category ascending')
         st.plotly_chart(fig, use_container_width=True)
+
+        st.metric(label='Avg Standard Deviation per second', value=round(df.groupby('Symbol').std().mean(), 4))
         
 
         fig_col1, fig_col2 = st.columns(2)
@@ -163,4 +168,5 @@ while True:
             no_refresh += 1
             if no_refresh > 3:
                 break
+
         last_row = df.index[-1]
