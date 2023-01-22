@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import numpy as np
 import time
 import logging
@@ -32,10 +33,8 @@ no_refresh = 0
 last_row = None
 while True:
     start_time = time.time()
-    df = streamer.box_stream()
+    df = streamer.stream()
     with placeholder.container():
-        fig_col1, fig_col2 = st.columns(2)
-
         refresh_time_padded = 1 if last_refresh_time < 1 else last_refresh_time
         st.markdown(f"### Live Orders: {df.RoundedTimeStamp.iloc[0]} to {df.RoundedTimeStamp.iloc[-1]}")
 
@@ -49,8 +48,20 @@ while True:
             labels={"OrderPrice": "Order Price", "TimeStamp": "Time"})
         # Set category order
         fig.update_xaxes(categoryorder='category ascending')
-        st.plotly_chart(fig)
+        # Change width of the plot
+        st.plotly_chart(fig, use_container_width=True)
         
+        fig_col1, fig_col2 = st.columns(2)
+
+        with fig_col1:
+            fig = px.violin(df[~df.OrderPrice.isna()], y='OrderPrice', x='MessageType', color='MessageType', box=False, points='outliers')
+            st.plotly_chart(fig, use_container_width=True)
+        with fig_col2:
+            fig = px.violin(df[df['MessageType'].isin(['NewOrderAcknowledged','CancelAcknowledged'])].sort_values('MessageType'), x='MessageType')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        fig = px.violin(df.sort_values('MessageType'), x='MessageType', points='outliers')
+        st.plotly_chart(fig, use_container_width=True)
 
         st.markdown(f"### Anomalies Detected (Incorrect Flow)")
         st.write(streamer.get_anomalies())
