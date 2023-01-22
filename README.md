@@ -2,16 +2,13 @@
 
 ### TODO:
 
-- [ ] Look into Data Visualization libraries
-  - [ ] Streamlit
-  - [ ] Grafana
-- [ ] Determine visualization metrics and plots
-  - [ ] Greyscale liquidity heatmaps
-  - [ ] Bid/Ask split box
-- [ ] Determine how to stream data to website
-- [ ] Explore cloud providers
-- [ ] Front-End Design
-- [ ] Anomaly detection
-  - Density cluster analysis
-  - K-Means clustering
-  - Autoencoder
+- [X] Look into Data Visualization libraries
+  - [X] Streamlit
+  - [X] ~~Grafana~~
+- [X] Determine visualization metrics and plots
+  - [X] ~~Greyscale liquidity heatmaps~~
+  - [X] ~~Bid/Ask split box~~
+- [X] Determine how to stream data to website
+- [X] Explore cloud providers
+- [X] Front-End Design
+- [X] Anomaly detection
