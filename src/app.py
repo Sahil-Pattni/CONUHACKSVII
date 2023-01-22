@@ -40,11 +40,16 @@ while True:
                 df[df.OrderPrice.notna()],
                 x="TimeStamp",
                 y="OrderPrice",
+                color='Symbol',
                 labels={"OrderPrice": "Order Price", "TimeStamp": "Time"})
             st.write(fig)
+            st.write(f'### Open Orders: {streamer.get_nopen_orders():,}')
 
         with fig_col2:
-            st.write(f'### Open Orders: {streamer.get_open_orders():,}')
+            cancelled_orders = streamer.get_cancelled_orders()
+            executed_trades = streamer.get_executed_trades()
+            open_orders = streamer.get_nopen_orders()
+            
 
 
         st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")

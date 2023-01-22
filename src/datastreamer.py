@@ -14,10 +14,13 @@ class DataStreamer:
             time_col (str, optional): Name of the column containing the timestamp. Defaults to 'TimeStamp'.
         """
         self.df = pd.read_json(datapath)
+        self.DATAFRAME = self.df.copy() # Keep a copy of the original dataframe
         # Sort by timestamp
         self.df.sort_values(by=[time_col], inplace=True)
         self.last_time = None
         self.orders = {}
+        self.cancelled_orders = 0
+        self.executed_trades = 0
 
     
     def __flow_error(self, order_id, actual, expected, prefix=''):
@@ -45,12 +48,12 @@ class DataStreamer:
 
         # If the window exceeds the last timestamp, loop back to the beginning
         if one_second_ahead > self.df['TimeStamp'].iloc[-1]:
-            one_second_ahead = self.df['TimeStamp'].iloc[0]
-            half_window = True
+            return self.DATAFRAME
 
         if half_window:
             df = self.df[(self.df['TimeStamp'] <= one_second_ahead)]
         else:
+            # 
             df = self.df[(self.df['TimeStamp'] > self.last_time) & (self.df['TimeStamp'] <= one_second_ahead)]
         # Update the last time
         self.last_time = one_second_ahead
@@ -92,19 +95,21 @@ class DataStreamer:
                         self.__flow_error(order_id, previous_status, 'CancelAcknowledged')
                     else:
                         self.orders.pop(order_id)
+                        self.cancelled_orders += 1
                         logging.info(f"[CLEAR] Order `{order_id}` has been cancelled")
                 elif order_status == 'Trade':
                     if previous_status != 'NewOrderAcknowledged':
                         self.__flow_error(order_id, previous_status, 'NewOrderAcknowledged')
                     else:
                         self.orders.pop(order_id)
+                        self.executed_trades += 1
                         logging.info(f"[CLEAR] Order `{order_id}` has been traded")
                 # Finally, if order flow is correct, remove the order from the dictionary
                 else:
                     self.orders[order_id] = order_status
     
 
-    def get_open_orders(self):
+    def get_nopen_orders(self):
         """
         Get the number of open orders.
 
@@ -112,6 +117,26 @@ class DataStreamer:
             int: Number of open orders.
         """
         return len(self.orders)
+    
+
+    def get_cancelled_orders(self):
+        """
+        Get the number of cancelled orders.
+
+        Returns:
+            int: Number of cancelled orders.
+        """
+        return self.cancelled_orders
+    
+
+    def get_executed_trades(self):
+        """
+        Get the number of executed trades.
+
+        Returns:
+            int: Number of executed trades.
+        """
+        return self.executed_trades
 
 
 
