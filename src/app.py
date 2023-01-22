@@ -120,9 +120,9 @@ while True:
             # Plot the distribution of Direction
             fig = px.pie(
                 anomalies,
-                # values='Direction',
                 names='Direction',
-                title='Direction Distribution'
+                title='Direction Distribution',
+                hole=0.4
             )
             st.plotly_chart(fig, use_container_width=True)
         
@@ -130,9 +130,9 @@ while True:
             # Plot the distribution of Type
             fig = px.pie(
                 anomalies,
-                # values='Type',
                 names='MessageType',
-                title='Message Type Distribution'
+                title='Message Type Distribution',
+                hole=0.4
             )
             st.plotly_chart(fig, use_container_width=True)
 
