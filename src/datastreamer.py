@@ -23,7 +23,7 @@ class DataStreamer:
 
     
     def __flow_error(self, order_id, actual, expected, prefix=''):
-        logging.error(f"{prefix} ERROR on Order ID `{order_id}`: Expected {expected}, but got `{actual}`. DELETING ORDER")
+        # logging.error(f"{prefix} ERROR on Order ID `{order_id}`: Expected {expected}, but got `{actual}`. DELETING ORDER")
         if order_id in self.orders:
             self.orders.pop(order_id, None)
 
@@ -38,15 +38,14 @@ class DataStreamer:
         Returns:
             pd.DataFrame: Dataframe containing the data in the time window.
         """
-        half_window = False
         if self.last_time is None:
             self.last_time = self.df['TimeStamp'].iloc[0]
-            half_window = True
         # Get the data for a `window` seconds time window
         one_second_ahead = self.last_time + pd.Timedelta(seconds=window)
 
         # If the window exceeds the last timestamp, loop back to the beginning
         if one_second_ahead > self.df['TimeStamp'].iloc[-1]:
+            logging.info(f"Dataframe exhausted. Returning full dataframe.")
             return self.df
         # Lower bound is 5 seconds before the upper bound if possible, otherwise the first timestamp
         lower_bound = one_second_ahead - pd.Timedelta(seconds=5) 
@@ -82,7 +81,7 @@ class DataStreamer:
                 else:
                     # If order does not exist, add it
                     self.orders[order_id] = order_status
-                    logging.info(f"[SUCCESS NEW ORDER] Order `{order_id}` has been created with status `{order_status}`")
+                    # logging.info(f"[SUCCESS NEW ORDER] Order `{order_id}` has been created with status `{order_status}`")
             else:
                 previous_status = self.orders[order_id]
                 if order_status == 'NewOrderAcknowledged' and previous_status != 'NewOrderRequest':
@@ -97,14 +96,14 @@ class DataStreamer:
                     else:
                         self.orders.pop(order_id)
                         self.cancelled_orders += 1
-                        logging.info(f"[CLEAR] Order `{order_id}` has been cancelled")
+                        # logging.info(f"[CLEAR] Order `{order_id}` has been cancelled")
                 elif order_status == 'Trade':
                     if previous_status != 'NewOrderAcknowledged':
                         self.__flow_error(order_id, previous_status, 'NewOrderAcknowledged')
                     else:
                         self.orders.pop(order_id)
                         self.executed_trades += 1
-                        logging.info(f"[CLEAR] Order `{order_id}` has been traded")
+                        # logging.info(f"[CLEAR] Order `{order_id}` has been traded")
                 # Finally, if order flow is correct, remove the order from the dictionary
                 else:
                     self.orders[order_id] = order_status
