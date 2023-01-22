@@ -52,7 +52,7 @@ class DataStreamer:
 
             if order_id not in self.orders:
                 if order_status != 'NewOrderRequest':
-                    logging.error(f"ERROR on Order ID `{order_id}`: Expected `NewOrderRequest`, but got `{order_status}`")
+                    logging.error(f"ERROR on Order ID `{order_id}`: [NEW ORDER] Expected `NewOrderRequest`, but got `{order_status}`")
                 else:
                     # If order does not exist, add it
                     self.orders[order_id] = order_status
