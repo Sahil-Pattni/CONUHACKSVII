@@ -33,16 +33,25 @@ class DataStreamer:
         # Index tracker
         self.last_index_seen = 0
 
+        # Flow dictionary
+        self.flow_dict = {
+            'NewOrderAcknowledged': 'NewOrderRequest',
+            'CancelRequest': 'NewOrderAcknowledged',
+            'CancelAcknowledged': 'CancelRequest',
+            'Cancelled': 'CancelAcknowledged',
+            'Trade': 'NewOrderAcknowledged' 
+        }
+
     
     def __flow_error(self, order_id, actual, expected, prefix=''):
-        logging.error(f"{prefix} ERROR on Order ID `{order_id}`: Expected {expected}, but got `{actual}`. DELETING ORDER")
+        # logging.error(f"{prefix} ERROR on Order ID `{order_id}`: Expected {expected}, but got `{actual}`. DELETING ORDER")
         if order_id in self.orders:
             self.orders.pop(order_id, None)
             self.cancelled_orders += 1
     
     
     
-    def stream(self, window=1, width=5):
+    def stream(self, window=1, width=1, update=True):
         """
         Stream data from the file.
 
@@ -68,13 +77,20 @@ class DataStreamer:
 
         # Get the data in the time window
         df = self.df[(self.df['RoundedTimeStamp'] >= self.lower_bound) & (self.df['RoundedTimeStamp'] < self.upper_bound)]
-        logging.info(f"Streaming data from {df.index[0]:,} to {df.index[1]:,} ({df.shape[0]:,} row(s))")
+        while df.shape[0] == 0:
+            self.lower_bound += pd.Timedelta(seconds=window)
+            self.upper_bound += pd.Timedelta(seconds=window)
+            df = self.df[(self.df['RoundedTimeStamp'] >= self.lower_bound) & (self.df['RoundedTimeStamp'] < self.upper_bound)]
+        
+        logging.info(f"Streaming data from {df.index[0]:,} to {df.index[-1]:,} ({df.shape[0]:,} row(s))")
+        
         # Update the order status
-        self.update_order_status(df)
+        if update:
+            self.update_order_status(df)
         return df
     
 
-    def box_stream(self, window=100):
+    def box_stream(self, window=100, update=True):
         if self.lower_bound is None or self.upper_bound is None:
             # If lower bound is None, set it to the first timestamp
             self.lower_bound = 0
@@ -93,7 +109,8 @@ class DataStreamer:
         df = self.df.iloc[self.lower_bound:self.upper_bound]
         logging.info(f"Streaming data from {df.index[0]:,} to {df.index[-1]:,} ({df.shape[0]:,} row(s))")
         # Update the order status
-        self.update_order_status(df)
+        if update:
+            self.update_order_status(df)
         return df
 
     
@@ -106,7 +123,7 @@ class DataStreamer:
             df (pd.DataFrame): Dataframe containing the data in the time window.
         """
         for idx, row in df.iterrows():
-            if idx <= self.last_index_seen:
+            if idx <= self.last_index_seen and idx != 0:
                 continue
             self.last_index_seen = idx
             order_id = row['OrderID']
@@ -114,55 +131,44 @@ class DataStreamer:
 
             if order_id not in self.orders:
                 if order_status != 'NewOrderRequest':
-                    self.__flow_error(order_id, order_status, 'NewOrderRequest', prefix='[NEW ORDER]')
-                    self.add_anomaly(row)
+                    self.add_anomaly(row, 'NewOrderRequest')
                 else:
                     # If order does not exist, add it
                     self.orders[order_id] = order_status
                     # logging.info(f"[SUCCESS NEW ORDER] Order `{order_id}` has been created with status `{order_status}`")
             else:
                 previous_status = self.orders[order_id]
-                if order_status == 'NewOrderAcknowledged' and previous_status != 'NewOrderRequest':
-                    self.__flow_error(order_id, previous_status, 'NewOrderRequest')
-                    self.add_anomaly(row)
-                    # Add to anomalies
-                elif order_status == 'CancelRequest' and previous_status != 'NewOrderAcknowledged':
-                    self.__flow_error(order_id, previous_status, 'NewOrderAcknowledged')
-                    self.add_anomaly(row)
-                elif order_status == 'CancelAcknowledged' and previous_status != 'CancelRequest':
-                    self.__flow_error(order_id, previous_status, 'CancelRequest')
-                    self.add_anomaly(row)
-                elif order_status == 'Cancelled':
-                    if previous_status != 'CancelAcknowledged':
-                        self.__flow_error(order_id, previous_status, 'CancelAcknowledged')
-                        self.add_anomaly(row)
-                    else:
-                        self.orders.pop(order_id)
-                        self.cancelled_orders += 1
-                        # logging.info(f"[CLEAR] Order `{order_id}` has been cancelled")
-                elif order_status == 'Trade':
-                    if previous_status != 'NewOrderAcknowledged':
-                        self.__flow_error(order_id, previous_status, 'NewOrderAcknowledged')
-                        self.add_anomaly(row)
-                    else:
-                        self.orders.pop(order_id)
-                        self.executed_trades += 1
-                        # logging.info(f"[CLEAR] Order `{order_id}` has been traded")
-                # Finally, if order flow is correct, remove the order from the dictionary
+                if previous_status != self.flow_dict[order_status]:
+                    self.__flow_error(order_id, previous_status, self.flow_dict[order_status], prefix='[ANOMALY]')
+                    self.add_anomaly(row, self.flow_dict[order_status])
                 else:
-                    self.orders[order_id] = order_status
+                    if order_status == 'Trade':
+                        self.executed_trades += 1
+                        self.orders.pop(order_id)
+                        # logging.info(f"[SUCCESS] Order `{order_id}` has been executed")
+                    elif order_status == 'Cancelled':
+                        self.cancelled_orders += 1
+                        self.orders.pop(order_id)
+                        # logging.info(f"[SUCCESS] Order `{order_id}` has been cancelled")
+                    else:
+                        self.orders[order_id] = order_status
+                        # logging.info(f"[SUCCESS] Order `{order_id}` has been updated with status `{order_status}`")
     
 
-    def add_anomaly(self, row):
+    def add_anomaly(self, row, expected, prefix=''):
         """
         Add an anomaly to the `self.anomalies` dataframe.
 
         Args:
             row (pd.Series): Row containing the anomaly.
+            expected (str): Expected order status.
+            prefix (str, optional): Prefix to add to the log message. Defaults to ''.
         """
-        if self.anomalies is None:
+        row['Reason'] = f"Expected `{expected}`. Got `{row['MessageType']}`"
+        if self.anomalies is None: 
             self.anomalies = pd.DataFrame(columns=row.index)
         self.anomalies = pd.concat([self.anomalies, row.to_frame().T], axis=0)
+        self.__flow_error(row['OrderID'], row['MessageType'], expected, prefix=prefix)
     
     
     def get_nopen_orders(self):
@@ -222,7 +228,7 @@ class DataStreamer:
         Returns:
             pd.DataFrame: Dataframe containing the anomalies.
         """
-        return self.anomalies[['TimeStamp', 'Direction', 'OrderID', 'MessageType', 'Symbol']]
+        return self.anomalies[['Reason', 'OrderID', 'MessageType', 'Symbol', 'TimeStamp', 'Direction']]
 
 
 
