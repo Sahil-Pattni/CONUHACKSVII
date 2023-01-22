@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import logging
 import time
-
+import plotly.express as px
 
 class DataStreamer:
     def __init__(self, datapath: str, time_col='TimeStamp') -> None:
@@ -14,21 +14,32 @@ class DataStreamer:
             time_col (str, optional): Name of the column containing the timestamp. Defaults to 'TimeStamp'.
         """
         self.df = pd.read_json(datapath)
-        # Sort by timestamp
+        # Sort by timestamp (just-in-case)
         self.df.sort_values(by=[time_col], inplace=True)
-        self.last_time = None
+        # Add rounded timestamp
+        self.df['RoundedTimeStamp'] = self.df[time_col].dt.round('S')
+        # Color map
+        self.color_map = {symbol: color for symbol, color in zip(self.df['Symbol'].unique(),  px.colors.qualitative.Plotly)}
         self.orders = {}
         self.cancelled_orders = 0
         self.executed_trades = 0
+
+        # Bounds for time stream
+        self.lower_bound, self.upper_bound = None, None
+
+        # Index tracker
+        self.last_index_seen = 0
 
     
     def __flow_error(self, order_id, actual, expected, prefix=''):
         # logging.error(f"{prefix} ERROR on Order ID `{order_id}`: Expected {expected}, but got `{actual}`. DELETING ORDER")
         if order_id in self.orders:
             self.orders.pop(order_id, None)
-
-    
-    def stream(self, window=1):
+    """
+    [0,30]
+    [1,31]
+    """
+    def stream(self, window=1, width=5):
         """
         Stream data from the file.
 
@@ -38,27 +49,23 @@ class DataStreamer:
         Returns:
             pd.DataFrame: Dataframe containing the data in the time window.
         """
-        if self.last_time is None:
-            self.last_time = self.df['TimeStamp'].iloc[0]
-        # Get the data for a `window` seconds time window
-        one_second_ahead = self.last_time + pd.Timedelta(seconds=window)
+        if self.lower_bound is None or self.upper_bound is None:
+            # If lower bound is None, set it to the first timestamp
+            self.lower_bound = self.df['RoundedTimeStamp'].iloc[0]
+            # If upper bound is None, set it to the first timestamp + width
+            self.upper_bound = self.lower_bound + pd.Timedelta(seconds=width)
+        else:
+            # Update the bounds
+            self.lower_bound += pd.Timedelta(seconds=window)
+            self.upper_bound += pd.Timedelta(seconds=window)
 
-        # If the window exceeds the last timestamp, loop back to the beginning
-        if one_second_ahead > self.df['TimeStamp'].iloc[-1]:
-            logging.info(f"Dataframe exhausted. Returning full dataframe.")
-            return self.df
-        # Lower bound is 5 seconds before the upper bound if possible, otherwise the first timestamp
-        lower_bound = one_second_ahead - pd.Timedelta(seconds=5) 
-        if lower_bound < self.df['TimeStamp'].iloc[0]:
-            lower_bound = self.df['TimeStamp'].iloc[0]
-        df = self.df[(self.df['TimeStamp'] > lower_bound) & (self.df['TimeStamp'] <= one_second_ahead)]
-        # Update the last time
-        self.last_time = one_second_ahead
-        try:
-            # Log the data
-            logging.info(f"Streaming {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")
-        except:
-            print(f"Error with timestamp: {one_second_ahead}")
+            # If upper bound is greater than the last timestamp, return the full dataframe
+            if self.upper_bound > self.df['RoundedTimeStamp'].iloc[-1]:
+                return self.df
+
+        # Get the data in the time window
+        df = self.df[(self.df['RoundedTimeStamp'] >= self.lower_bound) & (self.df['RoundedTimeStamp'] < self.upper_bound)]
+        logging.info(f"Streaming data from {df.index[0]:,} to {df.index[1]:,} ({df.shape[0]:,} row(s))")
         # Update the order status
         self.update_order_status(df)
         return df
@@ -71,7 +78,10 @@ class DataStreamer:
         Args:
             df (pd.DataFrame): Dataframe containing the data in the time window.
         """
-        for _, row in df.iterrows():
+        for idx, row in df.iterrows():
+            if idx <= self.last_index_seen:
+                continue
+            self.last_index_seen = idx
             order_id = row['OrderID']
             order_status = row['MessageType']
 
@@ -137,6 +147,16 @@ class DataStreamer:
             int: Number of executed trades.
         """
         return self.executed_trades
+    
+    
+    def get_color_map(self):
+        """
+        Get a color map for each unique symbol.
+
+        Returns:
+            dict: Dictionary containing the color map.
+        """
+        return self.color_map
 
 
 

@@ -38,30 +38,20 @@ while True:
 
         with fig_col1:
             refresh_time_padded = 1 if last_refresh_time < 1 else last_refresh_time
-            st.markdown(f"### Refresh Time: {refresh_time_padded:.3f} second(s) | Open Orders: {streamer.get_nopen_orders():,}")
+            st.markdown(f"### Live Orders: {df.RoundedTimeStamp.iloc[0]} to {df.RoundedTimeStamp.iloc[-1]}")
 
             fig = px.scatter(
                 df[df.OrderPrice.notna()],
                 x="TimeStamp",
                 y="OrderPrice",
-                color='Symbol',
+                color="Symbol",
+                color_discrete_map=streamer.get_color_map(),
+                title=f"Refresh Time: {refresh_time_padded:.3f} second(s) | Open Orders: {streamer.get_nopen_orders():,}",
                 labels={"OrderPrice": "Order Price", "TimeStamp": "Time"})
             st.write(fig)
 
         with fig_col2:
-            refresh_time_padded = 1 if last_refresh_time < 1 else last_refresh_time
-            st.markdown(f"### Refresh Time: {refresh_time_padded:.3f} second(s) | Open Orders: {streamer.get_nopen_orders():,}")
-
-            fig = px.scatter(
-                df[df.OrderPrice.notna()],
-                x="TimeStamp",
-                y="OrderPrice",
-                color='Symbol',
-                labels={"OrderPrice": "Order Price", "TimeStamp": "Time"})
-            st.write(fig)
-            # cancelled_orders = streamer.get_cancelled_orders()
-            # executed_trades = streamer.get_executed_trades()
-            # open_orders = streamer.get_nopen_orders()
+            pass
             
         st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[0]:,} to {df.index[-1]:,}")
         
