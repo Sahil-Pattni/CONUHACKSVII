@@ -39,55 +39,6 @@ while True:
     with placeholder.container():
         refresh_time_padded = 1 if last_refresh_time < 1 else last_refresh_time
         st.markdown(f"### Live Orders: {df.RoundedTimeStamp.iloc[0]} to {df.RoundedTimeStamp.iloc[-1]}")
-
-
-        # Plot refresh rate
-        fig_col1, fig_col2 = st.columns(2)
-        with fig_col1:
-            fig = go.Figure(go.Indicator(
-            mode = "gauge+number",
-            value = int(refresh_time_padded),
-            gauge = {
-                'axis': {'range': [None, 2], 'tickwidth': 1},
-                'bar': {'color': "black"},
-                'steps': [
-                    {'range': [0, 1], 'color': 'green'},
-                    {'range': [1, 1.5], 'color': 'orange'},
-                    {'range': [1.5, 2], 'color': 'red'}
-                ],
-                'threshold': {
-                    'line': {'color': "red", 'width': 4},
-                    'thickness': 0.75,
-                    'value': 1.8}    
-            },
-            title = {'text': "Refresh Rate (seconds)"}))
-            fig.update_layout(height=300)
-            st.plotly_chart(fig, height=200, use_container_width=True)
-        
-        # Plot processing time
-        with fig_col2:
-            fig = go.Figure(go.Indicator(
-            mode = "gauge+number",
-            value = last_refresh_time,
-            gauge = {
-                'axis': {'range': [None, 2], 'tickwidth': 1},
-                'bar': {'color': "black"},
-                'steps': [
-                    {'range': [0, 0.5], 'color': 'green'},
-                    {'range': [0.5, 1], 'color': 'yellow'},
-                    {'range': [1, 1.5], 'color': 'orange'},
-                    {'range': [1.5, 2], 'color': 'red'}
-                ],
-                'threshold': {
-                    'line': {'color': "red", 'width': 4},
-                    'thickness': 0.75,
-                    'value': 1.8}    
-            },
-            title = {'text': "Processing Time (seconds)"}))
-            fig.update_layout(height=300)
-            st.plotly_chart(fig, height=200, use_container_width=True)
-
-
         
 
         # Plot acknowledged/executed orders
@@ -101,6 +52,7 @@ while True:
             labels={"OrderPrice": "Order Price", "TimeStamp": "Time"})
         # Set category order
         fig.update_xaxes(categoryorder='category ascending')
+        fig.update_traces(marker={'size': 15})
         # Change width of the plot
         st.plotly_chart(fig, use_container_width=True)
 
@@ -153,6 +105,53 @@ while True:
             
         st.header(f"Order Book: {df.shape[0]:,} row(s) from {df.index[-10]:,} to {df.index[-1]:,}")
         st.dataframe(df.tail(10))
+
+
+        # Plot refresh rate
+        fig_col1, fig_col2 = st.columns(2)
+        with fig_col1:
+            fig = go.Figure(go.Indicator(
+            mode = "gauge+number",
+            value = int(refresh_time_padded),
+            gauge = {
+                'axis': {'range': [None, 2], 'tickwidth': 1},
+                'bar': {'color': "black"},
+                'steps': [
+                    {'range': [0, 1], 'color': 'green'},
+                    {'range': [1, 1.5], 'color': 'orange'},
+                    {'range': [1.5, 2], 'color': 'red'}
+                ],
+                'threshold': {
+                    'line': {'color': "red", 'width': 4},
+                    'thickness': 0.75,
+                    'value': 1.8}    
+            },
+            title = {'text': "Refresh Rate (seconds)"}))
+            fig.update_layout(height=300)
+            st.plotly_chart(fig, height=200, use_container_width=True)
+        
+        # Plot processing time
+        with fig_col2:
+            fig = go.Figure(go.Indicator(
+            mode = "gauge+number",
+            value = last_refresh_time,
+            gauge = {
+                'axis': {'range': [None, 2], 'tickwidth': 1},
+                'bar': {'color': "black"},
+                'steps': [
+                    {'range': [0, 0.5], 'color': 'green'},
+                    {'range': [0.5, 1], 'color': 'yellow'},
+                    {'range': [1, 1.5], 'color': 'orange'},
+                    {'range': [1.5, 2], 'color': 'red'}
+                ],
+                'threshold': {
+                    'line': {'color': "red", 'width': 4},
+                    'thickness': 0.75,
+                    'value': 1.8}    
+            },
+            title = {'text': "Processing Time (seconds)"}))
+            fig.update_layout(height=300)
+            st.plotly_chart(fig, height=200, use_container_width=True)
 
         # Sleep for remaining time (up to 1 second)
         elapsed_time = time.time() - start_time
