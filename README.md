@@ -1,4 +1,4 @@
-# CONUHACKSVII | National Bank of Canada Sponsor Challenege
+# CONUHACKSVII | National Bank of Canada Sponsor Challenge
 
 This application analyzes and visualizes the data from a (simulated) real-time order book communication feed between the Toronto Stock Exchange and the National Bank of Canada, based on their order book communications.
 
